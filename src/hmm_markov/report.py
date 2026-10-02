@@ -9,11 +9,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 
 from .data import ROOT
 
@@ -127,16 +125,6 @@ def _survival_axis(ax, rain: dict, kind: str = "dry") -> None:
             ms=3.5,
             label=label,
         )
-        if marker is None:
-            ax.annotate(
-                label,
-                (hours[keep][-1], y[keep][-1]),
-                xytext=(4, 0),
-                textcoords="offset points",
-                color=color,
-                fontsize=9,
-                va="center",
-            )
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xticks([1 / 12, 1, 6, 24, 72, 168], ["5 min", "1 h", "6 h", "1 d", "3 d", "7 d"])
@@ -158,6 +146,9 @@ def fig_hero(rain: dict, words: dict, n: dict, path: Path) -> None:
         color=INK,
         arrowprops={"arrowstyle": "-", "color": SLATE, "lw": 0.8},
     )
+    a1.text(30, 0.5, "Markov chain\n(geometric)", color=SLATE, fontsize=9)
+    a1.text(0.12, 0.12, "observed,\nheld-out days", color=INK, fontsize=9)
+    a1.text(200, 4e-3, "3-state\nHMM", color=TEAL, fontsize=9, va="center")
     a1.set_title("Rain: hidden states reproduce the multi-day dry spells\na Markov chain cannot")
 
     loso = words["fsdd"]["leave_one_speaker_out"]
@@ -180,7 +171,7 @@ def fig_hero(rain: dict, words: dict, n: dict, path: Path) -> None:
     a2.set_xlim(0.5, states[-1] + 2.6)
     a2.set_ylim(0, 105)
     a2.set_xlabel("Hidden states per word model (1 = no time structure)")
-    a2.set_ylabel("Accuracy on an unseen speaker (%)")
+    a2.set_ylabel("Digit accuracy, speaker left out of training (%)")
     a2.set_title(
         f"Speech: an unseen speaker is recognised {pct(n['loso_cmn'], 0)} of the time\n"
         f"with {n['k']} states + mean normalisation ({pct(n['loso_cmn_1'], 0)} with 1 state)"
@@ -196,6 +187,7 @@ def fig_rain_models(rain: dict, path: Path) -> None:
     labels = [f"{models[k]['label']} ({models[k]['n_params']} params)" for k in order]
     colors = [SLATE if k.startswith("markov") else TEAL for k in order]
     fig, ax = plt.subplots(figsize=(8, 3.6))
+    ax.set_axisbelow(True)
     ax.barh(labels, gains, color=colors, height=0.6)
     for i, g in enumerate(gains):
         ax.text(g + 0.04, i, f"+{g:.2f}", va="center", fontsize=9, color=INK)
@@ -206,7 +198,7 @@ def fig_rain_models(rain: dict, path: Path) -> None:
     best_chain = max(models[k]["test_gain_nats_per_day"] for k in order if k.startswith("markov"))
     ratio = models[best]["test_gain_nats_per_day"] / best_chain
     ax.set_title(
-        f"Held-out {rain['test_days']:.0f} days: the {models[best]['label']} gains"
+        f"Held-out {rain['test_days']:.0f} days: a {best.split('_')[1]}-state HMM gains"
         f" {ratio:.1f}x more than the best higher-order chain"
     )
     fig.savefig(path)
@@ -249,7 +241,8 @@ def fig_words_grid(words: dict, path: Path) -> None:
     states = words["protocol"]["states_grid"]
     acc = np.array([[100 * grid[f"{f}/{k}"]["mean"] for k in states] for f in feats])
     fig, ax = plt.subplots(figsize=(6.4, 2.8))
-    ax.imshow(acc, cmap="Greens", vmin=80, vmax=100, aspect="auto")
+    cmap = LinearSegmentedColormap.from_list("teal", ["#f0fdfa", TEAL])
+    ax.imshow(acc, cmap=cmap, vmin=90, vmax=100, aspect="auto")
     for i in range(len(feats)):
         for j in range(len(states)):
             ax.text(
@@ -259,7 +252,7 @@ def fig_words_grid(words: dict, path: Path) -> None:
                 ha="center",
                 va="center",
                 fontsize=10,
-                color="white" if acc[i, j] > 96 else INK,
+                color="white" if acc[i, j] > 97 else INK,
             )
     ax.set_xticks(range(len(states)), [str(k) for k in states])
     ax.set_yticks(range(len(feats)), [FEATURE_LABEL[f] for f in feats])
@@ -287,24 +280,19 @@ def fig_noise(words: dict, path: Path) -> None:
         label = f"{FEATURE_LABEL[curve['feature']]}, {curve['states']} state" + (
             "s" if curve["states"] > 1 else ""
         )
-        ax.plot(x, y, color=color, ls=ls, lw=2, marker="o", ms=4)
-        ax.annotate(
-            label,
-            (x[-1], y[-1]),
-            xytext=(6, 0),
-            textcoords="offset points",
-            color=color,
-            fontsize=8.5,
-            va="center",
-        )
+        ax.plot(x, y, color=color, ls=ls, lw=2, marker="o", ms=4, label=label)
+    ax.legend(loc="upper right", fontsize=9)
     n_words = len(words["fruits"]["words"])
     ax.axhline(100 / n_words, color=SLATE, lw=1, ls=":")
     ax.set_xticks(x, snr)
-    ax.set_xlim(-0.3, len(snr) + 1.6)
+    ax.set_xlim(-0.3, len(snr) - 0.7)
     ax.set_ylim(0, 105)
     ax.set_xlabel("Test-time signal-to-noise ratio (white noise; models trained on clean audio)")
     ax.set_ylabel("Accuracy (%)")
-    ax.set_title("MFCC models degrade last when noise is added at test time")
+    ax.set_title(
+        "Noise: 3-state MFCC models hold to 20 dB; below that,\n"
+        "the time-blind 1-state model degrades more gracefully"
+    )
     fig.savefig(path)
     plt.close(fig)
 
@@ -316,6 +304,7 @@ PAGE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>Hidden Markov Models, Measured</title>
 <meta name="description" content="Rain spells and spoken words with hidden Markov models written
 from scratch in NumPy, validated on held-out data.">
@@ -346,6 +335,7 @@ p, li { color: var(--fg); }
 .kpi span { color:var(--muted); font-size:.88rem; }
 .chart { width:100%; height:380px; margin: 8px 0 4px; }
 .note { color:var(--muted); font-size:.9rem; }
+.scroll { overflow-x: auto; }
 table { border-collapse: collapse; width:100%; font-size:.92rem; margin: 12px 0; }
 th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--rule); }
 th { color: var(--muted); font-weight:600; }
@@ -402,6 +392,8 @@ At 20 dB: MFCC __N20MFCC__, filterbank __N20FB__, spectrum __N20SP__.</p>
 
 <h2>Limitations</h2>
 <ul>
+<li>Beyond about 3 days the 3-state HMM thins out faster than the record (P(dry &gt; 7 d):
+__H3P7__ simulated vs __OBSP7__ observed): its slowest state still has a geometric tail.</li>
 <li>One rain gauge, 761 days, location undocumented; the held-out period is a different season
 mix from the training period.</li>
 <li>HMM likelihoods are maximised by EM from 4 starts; the best and worst start end within
@@ -447,7 +439,7 @@ function draw() {
     marker: {color: g.labels.map(l => l.startsWith('HMM') ? teal : slate)},
     text: g.values.map(v => '+' + v.toFixed(2)), textposition: 'outside',
     hovertemplate: '%{y}: %{x:.2f} nats/day<extra></extra>'}], layout({
-    margin: {l: 230, r: 40, t: 20, b: 48}, showlegend: false,
+    margin: {l: 230, r: 72, t: 20, b: 48}, showlegend: false,
     xaxis: {title: 'nats per day vs first-order chain', gridcolor: css('--rule')},
     yaxis: {autorange: 'reversed'}}), cfg);
   const l = DATA.loso;
@@ -496,7 +488,7 @@ def rain_table(rain: dict) -> str:
         "<tr><th>Model</th><th>params</th><th>held-out log-loss (millibits/step)</th>"
         "<th>KS dry</th><th>KS wet</th><th>P(dry &gt; 3 d)</th></tr>"
     )
-    return f"<table>{head}{''.join(rows)}</table>"
+    return f"<div class=scroll><table>{head}{''.join(rows)}</table></div>"
 
 
 def page_data(rain: dict, words: dict) -> dict:
@@ -557,6 +549,8 @@ def render_page(rain: dict, words: dict, n: dict) -> str:
         "__N20MFCC__": pct(n["noise20"]["mfcc"], 0),
         "__N20FB__": pct(n["noise20"]["filterbank"], 0),
         "__N20SP__": pct(n["noise20"]["spectrum"], 0),
+        "__H3P7__": pct(rain["models"]["hmm_3"]["simulated"]["dry_survival"][-1]),
+        "__OBSP7__": pct(rain["observed"]["test"]["dry_survival"][-1]),
         "__SPREAD__": f"{n['restart_spread']:.2f}",
         "__RAINTABLE__": rain_table(rain),
         "__DATA__": json.dumps(page_data(rain, words)),
