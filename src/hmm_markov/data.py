@@ -26,7 +26,9 @@ FSDD_SHA256 = "45a9b976ba3397a2fd5c70a9f2e43c34f442a3a6be47392ecfc41174b678f37e"
 DIGITS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
 STEP_MINUTES = 5
 STEPS_PER_DAY = 24 * 60 // STEP_MINUTES
-WET_THRESHOLD = 0.1  # accumulation per 5-min step above which the step counts as wet
+# RR5MN accumulation per 5-min step above which the step counts as wet. The course
+# file does not state the unit (presumably mm).
+WET_THRESHOLD = 0.1
 
 
 def load_rain(path: Path = DATA / "RR5MN.mat") -> np.ndarray:
