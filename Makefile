@@ -6,7 +6,7 @@ setup:  ## install the locked environment
 data:  ## check the committed data and download FSDD (16 MB, once)
 	uv run hmm-markov data
 
-run:  ## both experiments, ~10 min on a laptop (results/*.json)
+run:  ## both experiments, ~5 min on a laptop (results/*.json)
 	uv run hmm-markov rain
 	uv run hmm-markov words
 
