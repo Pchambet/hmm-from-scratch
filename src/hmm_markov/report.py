@@ -14,6 +14,7 @@ import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 
 from .data import ROOT
+from .markov import geometric_survival
 
 INK, TEAL, AMBER, SLATE, GRID = "#0f172a", "#0d9488", "#d97706", "#64748b", "#e2e8f0"
 FIGURES = ROOT / "docs" / "figures"
@@ -64,7 +65,8 @@ def key_numbers(rain: dict, words: dict) -> dict:
     """The handful of numbers quoted in the README and the report page."""
     obs = rain["observed"]["test"]
     m1, h3, h4 = (rain["models"][k] for k in ("markov_1", "hmm_3", "hmm_4"))
-    m3 = rain["models"]["markov_3"]
+    chains = [m for key, m in rain["models"].items() if key.startswith("markov")]
+    best_chain = max(chains, key=lambda m: m["test_gain_nats_per_day"])
     fr = words["fruits"]
     best = fr["grid"][fr["best"]]
     loso = words["fsdd"]["leave_one_speaker_out"]
@@ -73,7 +75,7 @@ def key_numbers(rain: dict, words: dict) -> dict:
     i20 = noise["snr_db"].index(20)
     return {
         "obs_p72": obs["p_dry_gt_72h"],
-        "m1_p72": m1["simulated"]["p_dry_gt_72h"],
+        "m1_p72": m1["p_dry_gt_72h_exact"],
         "h3_p72": h3["simulated"]["p_dry_gt_72h"],
         "m1_ks": m1["simulated"]["ks_dry"],
         "h3_ks": h3["simulated"]["ks_dry"],
@@ -81,7 +83,9 @@ def key_numbers(rain: dict, words: dict) -> dict:
         "m1_ks_wet": m1["simulated"]["ks_wet"],
         "h3_gain": h3["test_gain_nats_per_day"],
         "h4_gain": h4["test_gain_nats_per_day"],
-        "m3_gain": m3["test_gain_nats_per_day"],
+        "chain_gain": best_chain["test_gain_nats_per_day"],
+        "chain_label": best_chain["label"],
+        "chain_params": best_chain["n_params"],
         "fruits_best": f"{FEATURE_LABEL[best['feature']]}, {k} states",
         "fruits_best_acc": best["mean"],
         "fruits_1state_acc": fr["grid"][f"{best['feature']}/1"]["mean"],
@@ -105,15 +109,26 @@ def key_numbers(rain: dict, words: dict) -> dict:
 # --------------------------------------------------------------------------- figures
 
 
-def _survival_axis(ax, rain: dict, kind: str = "dry") -> None:
+def chain_dry_survival(rain: dict) -> np.ndarray:
+    """Exact P(dry spell > x) of the first-order chain on the survival grid.
+
+    Its dry spells are geometric, so the closed form replaces a simulated estimate that
+    runs out of spells in the tail.
+    """
+    steps = np.round(np.array(rain["survival_hours"]) * 60 / 5)
+    p_leave = rain["models"]["markov_1"]["p_wet_given_context"][0]
+    return geometric_survival(p_leave, steps)
+
+
+def _survival_axis(ax, rain: dict) -> None:
     hours = np.array(rain["survival_hours"])
     series = [
-        ("Observed, held-out", rain["observed"]["test"], INK, "o", "-"),
-        ("Markov chain", rain["models"]["markov_1"]["simulated"], SLATE, None, "--"),
-        ("3-state HMM", rain["models"]["hmm_3"]["simulated"], TEAL, None, "-"),
+        ("Observed, held-out", rain["observed"]["test"]["dry_survival"], INK, "o", "-"),
+        ("Markov chain", chain_dry_survival(rain), SLATE, None, "--"),
+        ("3-state HMM", rain["models"]["hmm_3"]["simulated"]["dry_survival"], TEAL, None, "-"),
     ]
-    for label, res, color, marker, ls in series:
-        y = np.array(res[f"{kind}_survival"])
+    for label, values, color, marker, ls in series:
+        y = np.array(values)
         keep = y > 0
         ax.plot(
             hours[keep],
@@ -128,8 +143,8 @@ def _survival_axis(ax, rain: dict, kind: str = "dry") -> None:
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xticks([1 / 12, 1, 6, 24, 72, 168], ["5 min", "1 h", "6 h", "1 d", "3 d", "7 d"])
-    ax.set_xlabel(f"{kind.capitalize()}-spell length")
-    ax.set_ylabel(f"P({kind} spell longer than x)")
+    ax.set_xlabel("Dry-spell length")
+    ax.set_ylabel("P(dry spell longer than x)")
 
 
 def fig_hero(rain: dict, words: dict, n: dict, path: Path) -> None:
@@ -173,20 +188,26 @@ def fig_hero(rain: dict, words: dict, n: dict, path: Path) -> None:
     a2.set_xlabel("Hidden states per word model (1 = no time structure)")
     a2.set_ylabel("Digit accuracy, speaker left out of training (%)")
     a2.set_title(
-        f"Speech: an unseen speaker is recognised {pct(n['loso_cmn'], 0)} of the time\n"
-        f"with {n['k']} states + mean normalisation ({pct(n['loso_cmn_1'], 0)} with 1 state)"
+        f"Speech: digits from an unseen speaker are recognised {pct(n['loso_cmn'], 0)}"
+        f" of the time\nwith {n['k']} states + mean normalisation"
+        f" ({pct(n['loso_cmn_1'], 0)} with 1 state)"
     )
     fig.savefig(path)
     plt.close(fig)
 
 
+def gain_order(rain: dict) -> list[str]:
+    """Every model but the first-order chain, which is the zero of the gain scale."""
+    return [k for k in rain["models"] if k != "markov_1"]
+
+
 def fig_rain_models(rain: dict, path: Path) -> None:
-    order = ["markov_2", "markov_3", "hmm_2", "hmm_3", "hmm_4"]
+    order = gain_order(rain)
     models = rain["models"]
     gains = [models[k]["test_gain_nats_per_day"] for k in order]
     labels = [f"{models[k]['label']} ({models[k]['n_params']} params)" for k in order]
     colors = [SLATE if k.startswith("markov") else TEAL for k in order]
-    fig, ax = plt.subplots(figsize=(8, 3.6))
+    fig, ax = plt.subplots(figsize=(8, 4.4))
     ax.set_axisbelow(True)
     ax.barh(labels, gains, color=colors, height=0.6)
     for i, g in enumerate(gains):
@@ -194,13 +215,19 @@ def fig_rain_models(rain: dict, path: Path) -> None:
     ax.invert_yaxis()
     ax.grid(axis="y", visible=False)
     ax.set_xlabel("Held-out log-likelihood gain over a first-order Markov chain (nats per day)")
-    best = max(order, key=lambda k: models[k]["test_gain_nats_per_day"])
-    best_chain = max(models[k]["test_gain_nats_per_day"] for k in order if k.startswith("markov"))
-    ratio = models[best]["test_gain_nats_per_day"] / best_chain
-    ax.set_title(
-        f"Held-out {rain['test_days']:.0f} days: a {best.split('_')[1]}-state HMM gains"
-        f" {ratio:.1f}x more than the best higher-order chain"
-    )
+    chains = [k for k in order if k.startswith("markov")]
+    big = max(chains, key=lambda k: models[k]["n_params"])
+    gain = {k: models[k]["test_gain_nats_per_day"] for k in order}
+    beating = [k for k in order if k.startswith("hmm") and gain[k] > gain[big]]
+    if beating:
+        small = min(beating, key=lambda k: models[k]["n_params"])
+        title = (
+            f"a {small.split('_')[1]}-state HMM ({models[small]['n_params']} params) beats\n"
+            f"a chain of order {big.split('_')[1]} ({models[big]['n_params']} params)"
+        )
+    else:
+        title = f"no HMM beats the chain of order {big.split('_')[1]}"
+    ax.set_title(f"Held-out {rain['test_days']:.0f} days: {title}")
     fig.savefig(path)
     plt.close(fig)
 
@@ -284,14 +311,15 @@ def fig_noise(words: dict, path: Path) -> None:
     ax.legend(loc="upper right", fontsize=9)
     n_words = len(words["fruits"]["words"])
     ax.axhline(100 / n_words, color=SLATE, lw=1, ls=":")
+    ax.text(-0.2, 100 / n_words + 2, f"chance (1/{n_words})", color=SLATE, fontsize=8.5)
     ax.set_xticks(x, snr)
     ax.set_xlim(-0.3, len(snr) - 0.7)
     ax.set_ylim(0, 105)
     ax.set_xlabel("Test-time signal-to-noise ratio (white noise; models trained on clean audio)")
-    ax.set_ylabel("Accuracy (%)")
+    ax.set_ylabel("Fruit-word accuracy (%)")
     ax.set_title(
-        "Noise: 3-state MFCC models hold to 20 dB; below that,\n"
-        "the time-blind 1-state model degrades more gracefully"
+        "Noise (fruit words, one speaker, 5-fold CV): 3-state MFCC models hold\n"
+        "to 20 dB; below that, the time-blind 1-state model degrades more gracefully"
     )
     fig.savefig(path)
     plt.close(fig)
@@ -355,7 +383,8 @@ word recogniser built on them carry to a voice it has never heard?</p>
  <div class="kpi"><b>__OBS72__ vs __M172__</b><span>dry spells over 3 days: observed vs
  first-order Markov chain (3-state HMM: __H372__)</span></div>
  <div class="kpi"><b>+__H4GAIN__ nats/day</b><span>held-out log-likelihood of the best HMM over
- the Markov chain (order-3 chain: +__M3GAIN__)</span></div>
+ the first-order chain (best chain, __CHAINLABEL__ with __CHAINPARAMS__ parameters:
+ +__CHAINGAIN__)</span></div>
  <div class="kpi"><b>__LOSO__</b><span>digit accuracy on an unseen speaker, __K__-state HMMs with
  mean normalisation (raw features: __LOSORAW__)</span></div>
 </div>
@@ -366,12 +395,15 @@ __TRAIN__ days and judged on the last __TEST__. A first-order Markov chain impli
 lengths; the observed dry spells have a much heavier tail. Hidden states, each with its own
 persistence, produce a mixture of geometric laws, which is what the data look like.</p>
 <div id="survival" class="chart"></div>
-<p class="note">Survival of dry-spell lengths, log-log. Model curves come from simulating each
-fitted model for 3x the record length. Kolmogorov-Smirnov distance to the held-out spells:
-Markov chain __M1KS__, 3-state HMM __H3KS__.</p>
+<p class="note">Survival of dry-spell lengths, log-log. The first-order chain's curve is its
+exact geometric law; the HMM curves come from simulating each fitted model for 3x the record
+length. Kolmogorov-Smirnov distance to the held-out spells: Markov chain __M1KS__, 3-state HMM
+__H3KS__.</p>
 <div id="gain" class="chart" style="height:320px"></div>
 <p class="note">Held-out log-likelihood gain over the first-order chain, per day of test data.
-All models score exactly the same steps.</p>
+All models score exactly the same steps; p. = free parameters. Chains of order 5 and 6
+have more parameters than any HMM here (32 and 64, against at most 19) and still gain less
+than the 3-state HMM.</p>
 __RAINTABLE__
 
 <h2>2. Speech: which features, how many states, which speaker?</h2>
@@ -387,8 +419,9 @@ training, and __LOSORAW__ when the test speaker is left out entirely.</p>
 normalisation removes each recording's average cepstrum: it erases a speaker's fixed
 spectral colouring, and it also erases what a 1-state model relies on, hence its collapse.</p>
 <div id="noise" class="chart"></div>
-<p class="note">Fruit corpus, models trained on clean audio and tested with white noise added.
-At 20 dB: MFCC __N20MFCC__, filterbank __N20FB__, spectrum __N20SP__.</p>
+<p class="note">Fruit-word corpus (one speaker, 5-fold CV x3), models trained on clean audio
+and tested with white noise added; chance is 1/7. At 20 dB: MFCC __N20MFCC__, filterbank
+__N20FB__, spectrum __N20SP__.</p>
 
 <h2>Limitations</h2>
 <ul>
@@ -415,11 +448,15 @@ function layout(extra) {
   return Object.assign({
     paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
     font: {family: 'Inter, system-ui, sans-serif', color: fg, size: 13},
-    margin: {l: 64, r: 16, t: 40, b: 56},
-    legend: {orientation: 'h', y: -0.22},
-    xaxis: {gridcolor: rule, zerolinecolor: rule, linecolor: muted},
-    yaxis: {gridcolor: rule, zerolinecolor: rule, linecolor: muted},
-  }, extra);
+    margin: {l: 64, r: 16, t: 16, b: 56},
+    legend: {orientation: 'h', x: 0, xanchor: 'left', y: 1.02, yanchor: 'bottom',
+      bgcolor: 'rgba(0,0,0,0)'},
+  }, extra, {
+    xaxis: Object.assign({gridcolor: rule, zerolinecolor: rule, linecolor: muted,
+      automargin: true}, extra.xaxis),
+    yaxis: Object.assign({gridcolor: rule, zerolinecolor: rule, linecolor: muted,
+      automargin: true}, extra.yaxis),
+  });
 }
 const cfg = {displayModeBar: false, responsive: true};
 function draw() {
@@ -431,34 +468,42 @@ function draw() {
   Plotly.react('survival', [tr('Observed (held-out)', s.observed, fg, 'solid', 'markers'),
     tr('Markov chain', s.markov, slate, 'dash'), tr('3-state HMM', s.hmm3, teal, 'solid'),
     tr('4-state HMM', s.hmm4, amber, 'dot')], layout({
-    title: {text: 'P(dry spell longer than x)', x: 0, font: {size: 14}},
-    xaxis: {type: 'log', title: 'hours', gridcolor: css('--rule')},
-    yaxis: {type: 'log', range: [-3.3, 0.05], gridcolor: css('--rule')}}), cfg);
+    xaxis: {type: 'log', title: {text: 'dry-spell length'},
+      tickvals: [1 / 12, 1, 6, 24, 72, 168],
+      ticktext: ['5 min', '1 h', '6 h', '1 d', '3 d', '7 d'], minor: {showgrid: false}},
+    yaxis: {type: 'log', range: [-3.3, 0.05], title: {text: 'P(dry spell longer than x)'},
+      tickvals: [0.001, 0.01, 0.1, 1], ticktext: ['0.1 %', '1 %', '10 %', '100 %']}}), cfg);
   const g = DATA.gain;
   Plotly.react('gain', [{type: 'bar', orientation: 'h', x: g.values, y: g.labels,
     marker: {color: g.labels.map(l => l.startsWith('HMM') ? teal : slate)},
-    text: g.values.map(v => '+' + v.toFixed(2)), textposition: 'outside',
+    text: g.values.map(v => '+' + v.toFixed(2)), textposition: 'outside', cliponaxis: false,
     hovertemplate: '%{y}: %{x:.2f} nats/day<extra></extra>'}], layout({
-    margin: {l: 230, r: 72, t: 20, b: 48}, showlegend: false,
-    xaxis: {title: 'nats per day vs first-order chain', gridcolor: css('--rule')},
+    margin: {l: 8, r: 56, t: 8, b: 48}, showlegend: false,
+    xaxis: {title: {text: 'nats per day vs first-order chain'},
+      range: [0, 1.15 * Math.max(...g.values)]},
     yaxis: {autorange: 'reversed'}}), cfg);
   const l = DATA.loso;
   Plotly.react('loso', [
     {x: l.states, y: l.none, name: 'raw MFCC', mode: 'lines+markers', line: {color: slate}},
     {x: l.states, y: l.cmn, name: 'MFCC + mean normalisation', mode: 'lines+markers',
      line: {color: teal, width: 3}}], layout({
-    title: {text: 'Unseen-speaker accuracy (%)', x: 0, font: {size: 14}},
-    xaxis: {title: 'hidden states per word model', tickvals: l.states,
-      gridcolor: css('--rule')},
-    yaxis: {range: [0, 100], gridcolor: css('--rule')},
+    xaxis: {title: {text: 'hidden states per word model'}, tickvals: l.states},
+    yaxis: {range: [0, 100], title: {text: 'unseen-speaker digit accuracy (%)'}},
     shapes: [{type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 10, y1: 10,
-      line: {color: slate, dash: 'dot', width: 1}}]}), cfg);
+      line: {color: slate, dash: 'dot', width: 1}}],
+    annotations: [{xref: 'paper', x: 1, xanchor: 'right', y: 10, yanchor: 'bottom',
+      text: 'chance (1/10)', showarrow: false, font: {color: slate, size: 12}}]}), cfg);
   const n = DATA.noise;
   const colors = {spectrum: amber, filterbank: slate, mfcc: teal, mfcc_1state: teal};
   Plotly.react('noise', Object.entries(n.curves).map(([k, c]) => ({x: n.x, y: c.y, name: c.label,
     mode: 'lines+markers', line: {color: colors[k], dash: k.endsWith('1state') ? 'dot' : 'solid'}})),
-    layout({title: {text: 'Accuracy (%) vs test-time SNR', x: 0, font: {size: 14}},
-      yaxis: {range: [0, 102], gridcolor: css('--rule')}, xaxis: {gridcolor: css('--rule')}}),
+    layout({yaxis: {range: [0, 102], title: {text: 'fruit-word accuracy (%)'}},
+      xaxis: {title: {text: 'test-time signal-to-noise ratio'}},
+      shapes: [{type: 'line', xref: 'paper', x0: 0, x1: 1, y0: n.chance, y1: n.chance,
+        line: {color: slate, dash: 'dot', width: 1}}],
+      annotations: [{xref: 'paper', x: 0, xanchor: 'left', y: n.chance, yanchor: 'bottom',
+        text: 'chance (1/' + n.n_words + ')', showarrow: false,
+        font: {color: slate, size: 12}}]}),
     cfg);
 }
 draw();
@@ -473,11 +518,12 @@ def rain_table(rain: dict) -> str:
     rows = []
     for m in rain["models"].values():
         sim = m["simulated"]
+        tail = m.get("p_dry_gt_72h_exact", sim["p_dry_gt_72h"])
         rows.append(
             f"<tr><td>{m['label']}</td><td class=num>{m['n_params']}</td>"
             f"<td class=num>{m['test_bits_per_step'] * 1000:.1f}</td>"
             f"<td class=num>{sim['ks_dry']:.3f}</td><td class=num>{sim['ks_wet']:.3f}</td>"
-            f"<td class=num>{pct(sim['p_dry_gt_72h'])}</td></tr>"
+            f"<td class=num>{pct(tail, 2 if tail < 0.01 else 1)}</td></tr>"
         )
     obs = rain["observed"]["test"]
     rows.append(
@@ -491,9 +537,16 @@ def rain_table(rain: dict) -> str:
     return f"<div class=scroll><table>{head}{''.join(rows)}</table></div>"
 
 
+def short_label(key: str, n_params: int) -> str:
+    """Bar label short enough for a phone-width chart, e.g. 'HMM, 3 states · 11 p.'."""
+    family, size = key.split("_")
+    name = f"chain, order {size}" if family == "markov" else f"HMM, {size} states"
+    return f"{name} · {n_params} p."
+
+
 def page_data(rain: dict, words: dict) -> dict:
     models = rain["models"]
-    order = ["markov_2", "markov_3", "hmm_2", "hmm_3", "hmm_4"]
+    order = gain_order(rain)
     loso = words["fsdd"]["leave_one_speaker_out"]
     states = words["protocol"]["states_grid"]
     noise = words["noise"]
@@ -508,12 +561,12 @@ def page_data(rain: dict, words: dict) -> dict:
         "survival": {
             "hours": rain["survival_hours"],
             "observed": rain["observed"]["test"]["dry_survival"],
-            "markov": models["markov_1"]["simulated"]["dry_survival"],
+            "markov": chain_dry_survival(rain).tolist(),
             "hmm3": models["hmm_3"]["simulated"]["dry_survival"],
             "hmm4": models["hmm_4"]["simulated"]["dry_survival"],
         },
         "gain": {
-            "labels": [f"{models[k]['label']} ({models[k]['n_params']} params)" for k in order],
+            "labels": [short_label(k, models[k]["n_params"]) for k in order],
             "values": [round(models[k]["test_gain_nats_per_day"], 2) for k in order],
         },
         "loso": {
@@ -521,7 +574,12 @@ def page_data(rain: dict, words: dict) -> dict:
             "none": [round(100 * loso[f"none/{k}"]["mean"], 2) for k in states],
             "cmn": [round(100 * loso[f"cmn/{k}"]["mean"], 2) for k in states],
         },
-        "noise": {"x": ["clean", *[f"{s} dB" for s in noise["snr_db"]]], "curves": curves},
+        "noise": {
+            "x": ["clean", *[f"{s} dB" for s in noise["snr_db"]]],
+            "curves": curves,
+            "n_words": len(words["fruits"]["words"]),
+            "chance": round(100 / len(words["fruits"]["words"]), 2),
+        },
     }
 
 
@@ -531,7 +589,9 @@ def render_page(rain: dict, words: dict, n: dict) -> str:
         "__M172__": pct(n["m1_p72"]),
         "__H372__": pct(n["h3_p72"]),
         "__H4GAIN__": f"{n['h4_gain']:.1f}",
-        "__M3GAIN__": f"{n['m3_gain']:.1f}",
+        "__CHAINGAIN__": f"{n['chain_gain']:.1f}",
+        "__CHAINLABEL__": n["chain_label"].lower().removeprefix("markov chain, "),
+        "__CHAINPARAMS__": str(n["chain_params"]),
         "__LOSO__": pct(n["loso_cmn"]),
         "__LOSORAW__": pct(n["loso_raw"]),
         "__LOSOMIN__": pct(n["loso_cmn_min"]),

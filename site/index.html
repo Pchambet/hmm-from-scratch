@@ -52,9 +52,10 @@ on data it never saw: do hidden states explain how long it stays dry, and how fa
 word recogniser built on them carry to a voice it has never heard?</p>
 <div class="kpis">
  <div class="kpi"><b>3.8 % vs 0.1 %</b><span>dry spells over 3 days: observed vs
- first-order Markov chain (3-state HMM: 3.6 %)</span></div>
+ first-order Markov chain (3-state HMM: 3.7 %)</span></div>
  <div class="kpi"><b>+3.2 nats/day</b><span>held-out log-likelihood of the best HMM over
- the Markov chain (order-3 chain: +1.6)</span></div>
+ the first-order chain (best chain, order 6 with 64 parameters:
+ +2.3)</span></div>
  <div class="kpi"><b>74.1 %</b><span>digit accuracy on an unseen speaker, 3-state HMMs with
  mean normalisation (raw features: 64.2 %)</span></div>
 </div>
@@ -65,13 +66,16 @@ word recogniser built on them carry to a voice it has never heard?</p>
 lengths; the observed dry spells have a much heavier tail. Hidden states, each with its own
 persistence, produce a mixture of geometric laws, which is what the data look like.</p>
 <div id="survival" class="chart"></div>
-<p class="note">Survival of dry-spell lengths, log-log. Model curves come from simulating each
-fitted model for 3x the record length. Kolmogorov-Smirnov distance to the held-out spells:
-Markov chain 0.53, 3-state HMM 0.07.</p>
+<p class="note">Survival of dry-spell lengths, log-log. The first-order chain's curve is its
+exact geometric law; the HMM curves come from simulating each fitted model for 3x the record
+length. Kolmogorov-Smirnov distance to the held-out spells: Markov chain 0.53, 3-state HMM
+0.07.</p>
 <div id="gain" class="chart" style="height:320px"></div>
 <p class="note">Held-out log-likelihood gain over the first-order chain, per day of test data.
-All models score exactly the same steps.</p>
-<div class=scroll><table><tr><th>Model</th><th>params</th><th>held-out log-loss (millibits/step)</th><th>KS dry</th><th>KS wet</th><th>P(dry &gt; 3 d)</th></tr><tr><td>Markov chain, order 1</td><td class=num>2</td><td class=num>80.1</td><td class=num>0.527</td><td class=num>0.233</td><td class=num>0.1 %</td></tr><tr><td>Markov chain, order 2</td><td class=num>4</td><td class=num>75.5</td><td class=num>0.411</td><td class=num>0.177</td><td class=num>0.3 %</td></tr><tr><td>Markov chain, order 3</td><td class=num>8</td><td class=num>72.3</td><td class=num>0.350</td><td class=num>0.124</td><td class=num>0.5 %</td></tr><tr><td>HMM, 2 hidden states</td><td class=num>5</td><td class=num>74.4</td><td class=num>0.290</td><td class=num>0.150</td><td class=num>0.4 %</td></tr><tr><td>HMM, 3 hidden states</td><td class=num>11</td><td class=num>65.5</td><td class=num>0.074</td><td class=num>0.176</td><td class=num>3.6 %</td></tr><tr><td>HMM, 4 hidden states</td><td class=num>19</td><td class=num>64.0</td><td class=num>0.075</td><td class=num>0.031</td><td class=num>3.8 %</td></tr><tr><td><b>Observed, held-out</b></td><td></td><td></td><td></td><td></td><td class=num>3.8 %</td></tr></table></div>
+All models score exactly the same steps; p. = free parameters. Chains of order 5 and 6
+have more parameters than any HMM here (32 and 64, against at most 19) and still gain less
+than the 3-state HMM.</p>
+<div class=scroll><table><tr><th>Model</th><th>params</th><th>held-out log-loss (millibits/step)</th><th>KS dry</th><th>KS wet</th><th>P(dry &gt; 3 d)</th></tr><tr><td>Markov chain, order 1</td><td class=num>2</td><td class=num>79.8</td><td class=num>0.527</td><td class=num>0.233</td><td class=num>0.10 %</td></tr><tr><td>Markov chain, order 2</td><td class=num>4</td><td class=num>75.2</td><td class=num>0.411</td><td class=num>0.177</td><td class=num>0.28 %</td></tr><tr><td>Markov chain, order 3</td><td class=num>8</td><td class=num>72.0</td><td class=num>0.350</td><td class=num>0.124</td><td class=num>0.52 %</td></tr><tr><td>Markov chain, order 4</td><td class=num>16</td><td class=num>70.3</td><td class=num>0.297</td><td class=num>0.074</td><td class=num>0.67 %</td></tr><tr><td>Markov chain, order 5</td><td class=num>32</td><td class=num>69.3</td><td class=num>0.253</td><td class=num>0.043</td><td class=num>0.87 %</td></tr><tr><td>Markov chain, order 6</td><td class=num>64</td><td class=num>68.4</td><td class=num>0.226</td><td class=num>0.036</td><td class=num>1.2 %</td></tr><tr><td>HMM, 2 hidden states</td><td class=num>5</td><td class=num>74.2</td><td class=num>0.291</td><td class=num>0.148</td><td class=num>0.45 %</td></tr><tr><td>HMM, 3 hidden states</td><td class=num>11</td><td class=num>65.2</td><td class=num>0.073</td><td class=num>0.170</td><td class=num>3.7 %</td></tr><tr><td>HMM, 4 hidden states</td><td class=num>19</td><td class=num>63.8</td><td class=num>0.069</td><td class=num>0.039</td><td class=num>4.3 %</td></tr><tr><td><b>Observed, held-out</b></td><td></td><td></td><td></td><td></td><td class=num>3.8 %</td></tr></table></div>
 
 <h2>2. Speech: which features, how many states, which speaker?</h2>
 <p>One left-to-right Gaussian HMM per word; a recording is assigned to the word whose model
@@ -86,13 +90,14 @@ training, and 64.2 % when the test speaker is left out entirely.</p>
 normalisation removes each recording's average cepstrum: it erases a speaker's fixed
 spectral colouring, and it also erases what a 1-state model relies on, hence its collapse.</p>
 <div id="noise" class="chart"></div>
-<p class="note">Fruit corpus, models trained on clean audio and tested with white noise added.
-At 20 dB: MFCC 98 %, filterbank 60 %, spectrum 48 %.</p>
+<p class="note">Fruit-word corpus (one speaker, 5-fold CV x3), models trained on clean audio
+and tested with white noise added; chance is 1/7. At 20 dB: MFCC 98 %, filterbank
+60 %, spectrum 48 %.</p>
 
 <h2>Limitations</h2>
 <ul>
 <li>Beyond about 3 days the 3-state HMM thins out faster than the record (P(dry &gt; 7 d):
-0.4 % simulated vs 1.4 % observed): its slowest state still has a geometric tail.</li>
+0.3 % simulated vs 1.4 % observed): its slowest state still has a geometric tail.</li>
 <li>One rain gauge, 761 days, location undocumented; the held-out period is a different season
 mix from the training period.</li>
 <li>HMM likelihoods are maximised by EM from 4 starts; the best and worst start end within
@@ -107,18 +112,22 @@ for operations under uncertainty. Code and data: <a
 href="https://github.com/Pchambet/tp-hmm-markov">github.com/Pchambet/tp-hmm-markov</a>.</footer>
 </main>
 <script>
-const DATA = {"survival": {"hours": [0.08333333333333333, 0.16666666666666666, 0.25, 0.3333333333333333, 0.4166666666666667, 0.5, 0.5833333333333334, 0.6666666666666666, 0.8333333333333334, 0.9166666666666666, 1.0833333333333333, 1.3333333333333333, 1.5, 1.8333333333333333, 2.0833333333333335, 2.5, 2.9166666666666665, 3.4166666666666665, 4.083333333333333, 4.75, 5.583333333333333, 6.583333333333333, 7.75, 9.083333333333334, 10.75, 12.583333333333334, 14.833333333333334, 17.416666666666668, 20.5, 24.083333333333332, 28.333333333333332, 33.25, 39.166666666666664, 46.0, 54.083333333333336, 63.583333333333336, 74.75, 87.91666666666667, 103.33333333333333, 121.5, 142.91666666666666, 168.0], "observed": [0.8321513002364066, 0.718676122931442, 0.6430260047281324, 0.6004728132387707, 0.5508274231678487, 0.5059101654846336, 0.4893617021276596, 0.4515366430260047, 0.4184397163120568, 0.40189125295508277, 0.37825059101654845, 0.3522458628841607, 0.34042553191489366, 0.3144208037825059, 0.2978723404255319, 0.2742316784869976, 0.264775413711584, 0.23877068557919623, 0.21749408983451535, 0.1985815602836879, 0.18912529550827428, 0.182033096926714, 0.15602836879432624, 0.14657210401891252, 0.1300236406619385, 0.1229314420803782, 0.12056737588652477, 0.11347517730496459, 0.099290780141844, 0.09456264775413714, 0.08510638297872342, 0.07801418439716312, 0.0685579196217494, 0.06382978723404253, 0.05673758865248224, 0.047281323877068515, 0.03546099290780147, 0.030732860520094607, 0.023640661938534313, 0.01891252955082745, 0.01654846335697402, 0.014184397163120588], "markov": [0.9906597774244833, 0.9835055643879174, 0.9753577106518283, 0.9682034976152624, 0.9600556438791733, 0.9532988871224165, 0.9437599364069952, 0.93620826709062, 0.9215023847376789, 0.916335453100159, 0.8990461049284578, 0.8761923688394276, 0.860691573926868, 0.8334658187599364, 0.8127980922098569, 0.7778219395866455, 0.746422893481717, 0.7114467408585056, 0.6701112877583466, 0.6335453100158983, 0.5842607313195549, 0.531597774244833, 0.47158187599364065, 0.4149443561208267, 0.3509538950715422, 0.2943163751987281, 0.2398648648648649, 0.18839427662957076, 0.13930842607313199, 0.10135135135135132, 0.07154213036565982, 0.04312400635930047, 0.024443561208267073, 0.011327503974562836, 0.004372019077901412, 0.0023847376788552754, 0.0003974562798092496, 0.0001987281399046248, 0.0, 0.0, 0.0, 0.0], "hmm3": [0.8446736758579647, 0.7750446340011903, 0.7167228724459432, 0.6653441777425114, 0.6159492164253124, 0.5740924419757985, 0.5367982543146201, 0.5062487601666337, 0.4544733187859552, 0.43225550486014674, 0.3967466772465781, 0.35330291608807773, 0.3350525689347351, 0.3029160880777624, 0.2872445943265225, 0.26859750049593334, 0.26006744693513195, 0.2513390200357072, 0.24439595318389207, 0.23804800634794687, 0.23328704622098795, 0.22535211267605637, 0.22078952588772072, 0.20948224558619322, 0.19956357865502872, 0.18805792501487795, 0.17813925808371356, 0.16822059115254906, 0.15195397738543936, 0.13846459035905578, 0.1255703233485419, 0.10771672287244594, 0.08926800238048005, 0.07498512199960328, 0.062289228327712776, 0.04681610791509616, 0.03332672088871258, 0.02281293394167827, 0.015473120412616503, 0.01031541360841104, 0.006347946835945195, 0.003769093433842463], "hmm4": [0.8254164096236891, 0.7622866543286038, 0.7094386181369525, 0.6617314414970183, 0.6197820275550072, 0.580505860579889, 0.5498663376516554, 0.5210775241620399, 0.4696689286448694, 0.4464322434711083, 0.40407156076495987, 0.35903763109191855, 0.33765165535677566, 0.306395229282336, 0.2897388443347728, 0.2704092124203167, 0.2570429775858524, 0.2502570429775859, 0.2410034957844952, 0.23421756117622872, 0.22928233600658032, 0.22311330454451983, 0.21632736993625334, 0.21015833847419285, 0.20234423195558293, 0.19206251285214893, 0.18013571869216538, 0.16985399958873126, 0.15833847419288505, 0.1433271643018713, 0.1293440263212009, 0.11536088834053049, 0.0958256220440058, 0.08266502159161015, 0.06580300226197822, 0.04996915484268971, 0.0359860168620193, 0.025293028994447853, 0.017890191239975373, 0.012749331688258314, 0.007197203372403815, 0.002878881348961526]}, "gain": {"labels": ["Markov chain, order 2 (4 params)", "Markov chain, order 3 (8 params)", "HMM, 2 hidden states (5 params)", "HMM, 3 hidden states (11 params)", "HMM, 4 hidden states (19 params)"], "values": [0.93, 1.57, 1.15, 2.93, 3.21]}, "loso": {"states": [1, 3, 5, 8], "none": [55.43, 64.17, 66.4, 65.37], "cmn": [42.8, 74.07, 75.57, 75.8]}, "noise": {"x": ["clean", "30 dB", "20 dB", "10 dB", "5 dB", "0 dB"], "curves": {"spectrum": {"label": "Log spectrum, 5 states", "y": [98.73, 79.37, 48.25, 27.3, 14.29, 14.29]}, "filterbank": {"label": "Log mel filterbank, 8 states", "y": [98.1, 87.3, 59.68, 33.65, 23.17, 14.29]}, "mfcc": {"label": "MFCC, 3 states", "y": [100.0, 100.0, 98.41, 54.6, 33.02, 27.94]}, "mfcc_1state": {"label": "MFCC, 1 state", "y": [99.37, 97.14, 71.43, 68.57, 53.33, 32.06]}}}};
+const DATA = {"survival": {"hours": [0.08333333333333333, 0.16666666666666666, 0.25, 0.3333333333333333, 0.4166666666666667, 0.5, 0.5833333333333334, 0.6666666666666666, 0.8333333333333334, 0.9166666666666666, 1.0833333333333333, 1.3333333333333333, 1.5, 1.8333333333333333, 2.0833333333333335, 2.5, 2.9166666666666665, 3.4166666666666665, 4.083333333333333, 4.75, 5.583333333333333, 6.583333333333333, 7.75, 9.083333333333334, 10.75, 12.583333333333334, 14.833333333333334, 17.416666666666668, 20.5, 24.083333333333332, 28.333333333333332, 33.25, 39.166666666666664, 46.0, 54.083333333333336, 63.583333333333336, 74.75, 87.91666666666667, 103.33333333333333, 121.5, 142.91666666666666, 168.0], "observed": [0.8321513002364066, 0.718676122931442, 0.6430260047281324, 0.6004728132387707, 0.5508274231678487, 0.5059101654846336, 0.4893617021276596, 0.4515366430260047, 0.4184397163120568, 0.40189125295508277, 0.37825059101654845, 0.3522458628841607, 0.34042553191489366, 0.3144208037825059, 0.2978723404255319, 0.2742316784869976, 0.264775413711584, 0.23877068557919623, 0.21749408983451535, 0.1985815602836879, 0.18912529550827428, 0.182033096926714, 0.15602836879432624, 0.14657210401891252, 0.1300236406619385, 0.1229314420803782, 0.12056737588652477, 0.11347517730496459, 0.099290780141844, 0.09456264775413714, 0.08510638297872342, 0.07801418439716312, 0.0685579196217494, 0.06382978723404253, 0.05673758865248224, 0.047281323877068515, 0.03546099290780147, 0.030732860520094607, 0.023640661938534313, 0.01891252955082745, 0.01654846335697402, 0.014184397163120588], "markov": [0.9919886351994646, 0.9840414523648964, 0.9761579373111525, 0.9683375799724147, 0.960579874369188, 0.9528843185755639, 0.9452504146867454, 0.9376776687868326, 0.922713695043125, 0.9153214990256845, 0.9007142972820487, 0.8792394105415088, 0.8652080265257217, 0.8378134465786261, 0.8178382458637391, 0.7855989594661076, 0.7546305497885184, 0.7190756172115355, 0.6742611484283654, 0.6322396218118421, 0.5833761575946727, 0.5296988566137465, 0.4732850525090295, 0.4161308705861462, 0.3542940575071046, 0.29683232542235327, 0.23888671809608567, 0.18616567108668794, 0.13824434536979693, 0.09782172846763566, 0.0649048068120288, 0.04038052527838723, 0.022811162920300707, 0.011794962154847845, 0.0054056276451939006, 0.0021607749940887417, 0.0007353716730875403, 0.00020633123020445454, 4.659119483836408e-05, 8.067959662845952e-06, 1.0209036527596204e-06, 9.067769038997881e-08], "hmm3": [0.8344331133773245, 0.7660467906418716, 0.708258348330334, 0.6544691061787642, 0.6096780643871226, 0.5702859428114377, 0.5286942611477705, 0.49670065986802636, 0.44531093781243747, 0.4253149370125975, 0.38772245550889817, 0.34833033393321333, 0.32713457308538296, 0.29714057188562293, 0.2835432913417316, 0.2689462107578484, 0.25914817036592686, 0.25174965006998595, 0.24455108978204354, 0.23875224955009, 0.23375324935012998, 0.22815436912617482, 0.21955608878224353, 0.21075784843031398, 0.2009598080383923, 0.18876224755048987, 0.17856428714257144, 0.16696660667866425, 0.1519696060787843, 0.1391721655668866, 0.1255748850229954, 0.10917816436712657, 0.09338132373525299, 0.07798440311937616, 0.06018796240751845, 0.04479104179164162, 0.03499300139972006, 0.02519496100779839, 0.016396720655868835, 0.011197760447910432, 0.006798640271945655, 0.0031993601279743933], "hmm4": [0.8199343724364233, 0.7577932731747334, 0.7065217391304348, 0.6599671862182117, 0.6123872026251025, 0.5746513535684987, 0.5408121410992617, 0.5096390484003281, 0.4606234618539786, 0.44134536505332245, 0.4054552912223134, 0.3595159967186218, 0.3394175553732568, 0.30783429040196886, 0.28999179655455287, 0.2688679245283019, 0.25697292863002463, 0.24630844954881048, 0.23872026251025436, 0.23277276456111562, 0.2249794913863823, 0.21903199343724367, 0.21144380639868743, 0.2038556193601313, 0.19544708777686626, 0.18724364232977853, 0.17657916324856437, 0.16509433962264153, 0.15258408531583267, 0.1390484003281378, 0.12510254306808855, 0.10849056603773588, 0.09392945036915501, 0.07813781788351104, 0.06562756357670219, 0.05291222313371613, 0.04081214109926168, 0.029532403609516034, 0.019278096800656286, 0.011074651353568554, 0.008203445447087732, 0.003691550451189518]}, "gain": {"labels": ["chain, order 2 \u00b7 4 p.", "chain, order 3 \u00b7 8 p.", "chain, order 4 \u00b7 16 p.", "chain, order 5 \u00b7 32 p.", "chain, order 6 \u00b7 64 p.", "HMM, 2 states \u00b7 5 p.", "HMM, 3 states \u00b7 11 p.", "HMM, 4 states \u00b7 19 p."], "values": [0.91, 1.55, 1.9, 2.1, 2.27, 1.13, 2.91, 3.19]}, "loso": {"states": [1, 3, 5, 8], "none": [55.43, 64.17, 66.4, 65.37], "cmn": [42.8, 74.07, 75.57, 75.8]}, "noise": {"x": ["clean", "30 dB", "20 dB", "10 dB", "5 dB", "0 dB"], "curves": {"spectrum": {"label": "Log spectrum, 5 states", "y": [98.73, 79.37, 48.25, 27.3, 14.29, 14.29]}, "filterbank": {"label": "Log mel filterbank, 8 states", "y": [98.1, 87.3, 59.68, 33.65, 23.17, 14.29]}, "mfcc": {"label": "MFCC, 3 states", "y": [100.0, 100.0, 98.41, 54.6, 33.02, 27.94]}, "mfcc_1state": {"label": "MFCC, 1 state", "y": [99.37, 97.14, 71.43, 68.57, 53.33, 32.06]}}, "n_words": 7, "chance": 14.29}};
 function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 function layout(extra) {
   const fg = css('--fg'), muted = css('--muted'), rule = css('--rule');
   return Object.assign({
     paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
     font: {family: 'Inter, system-ui, sans-serif', color: fg, size: 13},
-    margin: {l: 64, r: 16, t: 40, b: 56},
-    legend: {orientation: 'h', y: -0.22},
-    xaxis: {gridcolor: rule, zerolinecolor: rule, linecolor: muted},
-    yaxis: {gridcolor: rule, zerolinecolor: rule, linecolor: muted},
-  }, extra);
+    margin: {l: 64, r: 16, t: 16, b: 56},
+    legend: {orientation: 'h', x: 0, xanchor: 'left', y: 1.02, yanchor: 'bottom',
+      bgcolor: 'rgba(0,0,0,0)'},
+  }, extra, {
+    xaxis: Object.assign({gridcolor: rule, zerolinecolor: rule, linecolor: muted,
+      automargin: true}, extra.xaxis),
+    yaxis: Object.assign({gridcolor: rule, zerolinecolor: rule, linecolor: muted,
+      automargin: true}, extra.yaxis),
+  });
 }
 const cfg = {displayModeBar: false, responsive: true};
 function draw() {
@@ -130,34 +139,42 @@ function draw() {
   Plotly.react('survival', [tr('Observed (held-out)', s.observed, fg, 'solid', 'markers'),
     tr('Markov chain', s.markov, slate, 'dash'), tr('3-state HMM', s.hmm3, teal, 'solid'),
     tr('4-state HMM', s.hmm4, amber, 'dot')], layout({
-    title: {text: 'P(dry spell longer than x)', x: 0, font: {size: 14}},
-    xaxis: {type: 'log', title: 'hours', gridcolor: css('--rule')},
-    yaxis: {type: 'log', range: [-3.3, 0.05], gridcolor: css('--rule')}}), cfg);
+    xaxis: {type: 'log', title: {text: 'dry-spell length'},
+      tickvals: [1 / 12, 1, 6, 24, 72, 168],
+      ticktext: ['5 min', '1 h', '6 h', '1 d', '3 d', '7 d'], minor: {showgrid: false}},
+    yaxis: {type: 'log', range: [-3.3, 0.05], title: {text: 'P(dry spell longer than x)'},
+      tickvals: [0.001, 0.01, 0.1, 1], ticktext: ['0.1 %', '1 %', '10 %', '100 %']}}), cfg);
   const g = DATA.gain;
   Plotly.react('gain', [{type: 'bar', orientation: 'h', x: g.values, y: g.labels,
     marker: {color: g.labels.map(l => l.startsWith('HMM') ? teal : slate)},
-    text: g.values.map(v => '+' + v.toFixed(2)), textposition: 'outside',
+    text: g.values.map(v => '+' + v.toFixed(2)), textposition: 'outside', cliponaxis: false,
     hovertemplate: '%{y}: %{x:.2f} nats/day<extra></extra>'}], layout({
-    margin: {l: 230, r: 72, t: 20, b: 48}, showlegend: false,
-    xaxis: {title: 'nats per day vs first-order chain', gridcolor: css('--rule')},
+    margin: {l: 8, r: 56, t: 8, b: 48}, showlegend: false,
+    xaxis: {title: {text: 'nats per day vs first-order chain'},
+      range: [0, 1.15 * Math.max(...g.values)]},
     yaxis: {autorange: 'reversed'}}), cfg);
   const l = DATA.loso;
   Plotly.react('loso', [
     {x: l.states, y: l.none, name: 'raw MFCC', mode: 'lines+markers', line: {color: slate}},
     {x: l.states, y: l.cmn, name: 'MFCC + mean normalisation', mode: 'lines+markers',
      line: {color: teal, width: 3}}], layout({
-    title: {text: 'Unseen-speaker accuracy (%)', x: 0, font: {size: 14}},
-    xaxis: {title: 'hidden states per word model', tickvals: l.states,
-      gridcolor: css('--rule')},
-    yaxis: {range: [0, 100], gridcolor: css('--rule')},
+    xaxis: {title: {text: 'hidden states per word model'}, tickvals: l.states},
+    yaxis: {range: [0, 100], title: {text: 'unseen-speaker digit accuracy (%)'}},
     shapes: [{type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 10, y1: 10,
-      line: {color: slate, dash: 'dot', width: 1}}]}), cfg);
+      line: {color: slate, dash: 'dot', width: 1}}],
+    annotations: [{xref: 'paper', x: 1, xanchor: 'right', y: 10, yanchor: 'bottom',
+      text: 'chance (1/10)', showarrow: false, font: {color: slate, size: 12}}]}), cfg);
   const n = DATA.noise;
   const colors = {spectrum: amber, filterbank: slate, mfcc: teal, mfcc_1state: teal};
   Plotly.react('noise', Object.entries(n.curves).map(([k, c]) => ({x: n.x, y: c.y, name: c.label,
     mode: 'lines+markers', line: {color: colors[k], dash: k.endsWith('1state') ? 'dot' : 'solid'}})),
-    layout({title: {text: 'Accuracy (%) vs test-time SNR', x: 0, font: {size: 14}},
-      yaxis: {range: [0, 102], gridcolor: css('--rule')}, xaxis: {gridcolor: css('--rule')}}),
+    layout({yaxis: {range: [0, 102], title: {text: 'fruit-word accuracy (%)'}},
+      xaxis: {title: {text: 'test-time signal-to-noise ratio'}},
+      shapes: [{type: 'line', xref: 'paper', x0: 0, x1: 1, y0: n.chance, y1: n.chance,
+        line: {color: slate, dash: 'dot', width: 1}}],
+      annotations: [{xref: 'paper', x: 0, xanchor: 'left', y: n.chance, yanchor: 'bottom',
+        text: 'chance (1/' + n.n_words + ')', showarrow: false,
+        font: {color: slate, size: 12}}]}),
     cfg);
 }
 draw();
