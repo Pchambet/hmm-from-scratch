@@ -1,11 +1,11 @@
-# tp-hmm-markov
+# hmm-from-scratch
 
 Do hidden states earn their parameters? Markov chains and hidden Markov models written from scratch in NumPy, judged only on held-out data: 761 days of 5-minute rainfall, and spoken words from speakers the model has never heard.
 
-[![ci](https://github.com/Pchambet/tp-hmm-markov/actions/workflows/ci.yml/badge.svg)](https://github.com/Pchambet/tp-hmm-markov/actions/workflows/ci.yml)
+[![ci](https://github.com/Pchambet/hmm-from-scratch/actions/workflows/ci.yml/badge.svg)](https://github.com/Pchambet/hmm-from-scratch/actions/workflows/ci.yml)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-0d9488)
 [![License: MIT](https://img.shields.io/badge/license-MIT-64748b)](LICENSE)
-[![Report](https://img.shields.io/badge/report-online-0f172a)](https://pchambet.github.io/tp-hmm-markov/)
+[![Report](https://img.shields.io/badge/report-online-0f172a)](https://pchambet.github.io/hmm-from-scratch/)
 
 ![Left: survival of dry-spell lengths, observed vs Markov chain vs 3-state HMM. Right: unseen-speaker digit accuracy vs number of hidden states, with and without mean normalisation.](docs/figures/hero.png)
 
@@ -63,7 +63,7 @@ On the fruit-word corpus (one speaker, 5-fold CV), MFCC is the most noise-robust
 ![Fruit corpus CV grid](docs/figures/words_grid.png)
 The selection corpus is saturated: MFCC reaches 99.4 % with a single state and 100 % with 3 or more. It picks a feature set, but it cannot separate model sizes. That is why the speaker-independent test on FSDD is the number to quote.
 
-Full tables and interactive charts are in the [report](https://pchambet.github.io/tp-hmm-markov/); per-speaker numbers and every other output are in `results/*.json`.
+Full tables and interactive charts are in the [report](https://pchambet.github.io/hmm-from-scratch/); per-speaker numbers and every other output are in `results/*.json`.
 
 ## Reproduce
 

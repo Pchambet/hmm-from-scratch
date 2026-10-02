@@ -438,7 +438,7 @@ state-of-the-art recogniser.</li>
 </ul>
 <footer>Built by <a href="https://github.com/Pchambet">Pierre Chambet</a> — decision science
 for operations under uncertainty. Code and data: <a
-href="https://github.com/Pchambet/tp-hmm-markov">github.com/Pchambet/tp-hmm-markov</a>.</footer>
+href="https://github.com/Pchambet/hmm-from-scratch">github.com/Pchambet/hmm-from-scratch</a>.</footer>
 </main>
 <script>
 const DATA = __DATA__;
