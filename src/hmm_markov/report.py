@@ -514,7 +514,7 @@ def page_data(rain: dict, words: dict) -> dict:
         },
         "gain": {
             "labels": [f"{models[k]['label']} ({models[k]['n_params']} params)" for k in order],
-            "values": [round(models[k]["test_gain_nats_per_day"], 3) for k in order],
+            "values": [round(models[k]["test_gain_nats_per_day"], 2) for k in order],
         },
         "loso": {
             "states": states,
