@@ -77,11 +77,15 @@ def recordings_digest(recordings: Path) -> str:
 def fetch_fsdd(dest: Path = RAW / "fsdd") -> Path:
     """Download FSDD v1.0.10 (16 MB, CC BY-SA 4.0) once; return the recordings folder."""
     recordings = dest / "recordings"
-    if recordings.is_dir() and len(list(recordings.glob("*.wav"))) == 3000:
+    # Checked on every call (about a second), so a partial or corrupted earlier download
+    # is fetched again instead of being used unverified.
+    if recordings.is_dir() and recordings_digest(recordings) == FSDD_SHA256:
         return recordings
     with urllib.request.urlopen(FSDD_URL, timeout=120) as resp:
         payload = resp.read()
     recordings.mkdir(parents=True, exist_ok=True)
+    for stale in recordings.glob("*.wav"):  # leftovers would break the digest for good
+        stale.unlink()
     with zipfile.ZipFile(io.BytesIO(payload)) as zf:
         for member in zf.namelist():
             if "/recordings/" in member and member.endswith(".wav"):
