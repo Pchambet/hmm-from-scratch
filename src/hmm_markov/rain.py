@@ -4,10 +4,12 @@ Protocol
 - 761 days of 5-minute wet/dry data, split chronologically: first 70 % for fitting,
   last 30 % held out. The split is aligned on whole weeks.
 - Both splits are cut into week-long chunks (2016 steps). Every model scores the same
-  symbols: steps 4..2016 of each held-out week, conditioned on the steps before them
-  within that week, so k-th order chains (k <= 3) and HMMs are compared like for like.
-- Candidates: observable Markov chains of order 1-3, and HMMs with K = 2, 3, 4 hidden
-  states and Bernoulli emissions, each fitted by Baum-Welch from several starts.
+  symbols: steps 7..2016 of each held-out week, conditioned on the steps before them
+  within that week, so k-th order chains (k <= 6) and HMMs are compared like for like.
+- Candidates: observable Markov chains of order 1-6 (2 to 64 parameters), and HMMs with
+  K = 2, 3, 4 hidden states and Bernoulli emissions, each fitted by Baum-Welch from
+  several starts. Chains of order 5 and 6 have more parameters than the largest HMM, so
+  a win of the HMM cannot be put down to model size alone.
 - Spell realism: simulate each fitted model for 3x the record length and compare the
   dry- and wet-spell length distributions with the held-out record.
 """
@@ -20,10 +22,11 @@ import numpy as np
 
 from .data import STEPS_PER_DAY, load_rain
 from .hmm import HMM, Categorical, pad
-from .markov import OrderKChain, spell_lengths, stationary_distribution
+from .markov import OrderKChain, geometric_survival, spell_lengths, stationary_distribution
 
 CHUNK = 7 * STEPS_PER_DAY
-CONTEXT = 3  # symbols per chunk used only as context, so all models score the same steps
+CHAIN_ORDERS = (1, 2, 3, 4, 5, 6)
+CONTEXT = max(CHAIN_ORDERS)  # context-only symbols per chunk: all models score the same steps
 TRAIN_FRACTION = 0.7
 HMM_STATES = (2, 3, 4)
 N_RESTARTS = 4
@@ -152,7 +155,7 @@ def run(seed: int = 0) -> dict:
 
     models: dict[str, dict] = {}
     fitted: dict[str, HMM] = {}
-    for order in (1, 2, 3):
+    for order in CHAIN_ORDERS:
         chain = OrderKChain(order).fit(train_chunks)
         sim = chain.sample(n_sim, rng)
         models[f"markov_{order}"] = {
@@ -180,6 +183,13 @@ def run(seed: int = 0) -> dict:
             "stationary_wet_fraction": stationary_wet(model),
             "simulated": spell_summary(sim, reference=split.test),
         }
+
+    # A first-order chain has geometric dry spells, so its tail has a closed form; the
+    # simulated estimate rests on a handful of spells and is too noisy to quote.
+    p_leave_dry = models["markov_1"]["p_wet_given_context"][0]
+    models["markov_1"]["p_dry_gt_72h_exact"] = float(
+        geometric_survival(p_leave_dry, 3 * STEPS_PER_DAY)
+    )
 
     base = models["markov_1"]["test_loglik"]
     for m in models.values():

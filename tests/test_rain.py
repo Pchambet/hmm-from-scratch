@@ -5,7 +5,9 @@ from hmm_markov.data import load_rain
 from hmm_markov.hmm import HMM, Categorical
 from hmm_markov.markov import OrderKChain
 from hmm_markov.rain import (
+    CHAIN_ORDERS,
     CHUNK,
+    CONTEXT,
     chain_conditional_loglik,
     chronological_split,
     hmm_conditional_loglik,
@@ -50,3 +52,15 @@ def test_committed_rain_record_matches_documented_shape():
     wet = load_rain()
     assert len(wet) == 761 * 288
     assert wet.mean() == pytest.approx(0.0419, abs=1e-4)
+
+
+def test_every_chain_order_scores_the_same_steps_as_the_hmms():
+    # The like-for-like comparison holds only if the shared context covers the
+    # longest chain: each model must predict exactly the steps after CONTEXT.
+    rng = np.random.default_rng(1)
+    chunks = [rng.integers(0, 2, size=300) for _ in range(4)]
+    expected = sum(len(c) - CONTEXT for c in chunks)
+    for order in CHAIN_ORDERS:
+        chain = OrderKChain(order).fit(chunks)
+        _, n = chain.log_likelihood([c[CONTEXT - order :] for c in chunks])
+        assert n == expected
