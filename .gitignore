@@ -1,22 +1,22 @@
 # Python
 __pycache__/
 *.pyc
-
-# Virtual environments
 .venv/
-venv/
-env/
+.ruff_cache/
+.pytest_cache/
+
+# Data downloaded by `make data`
+data/raw/
+data/interim/
 
 # Jupyter
 .ipynb_checkpoints/
 
-# IDE
+# IDE / OS
 .vscode/
 .cursor/
 .idea/
 *.swp
-
-# OS
 .DS_Store
 Thumbs.db
 
@@ -24,10 +24,9 @@ Thumbs.db
 .env
 .envrc
 
-# LaTeX
+# LaTeX build files
 *.aux
 *.log
 *.out
 *.toc
 *.synctex.gz
-
