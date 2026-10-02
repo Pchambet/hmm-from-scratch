@@ -54,6 +54,12 @@ def pct(x: float, digits: int = 1) -> str:
     return f"{100 * x:.{digits}f} %"
 
 
+def pct_sig(x: float) -> str:
+    """Percentage that keeps small probabilities readable: 0.00017 -> 0.017 %, 0.98 -> 98 %."""
+    v = 100 * x
+    return (f"{v:.0f}" if v >= 10 else f"{v:.2g}") + " %"
+
+
 def best_loso(words: dict, norm: str) -> dict:
     runs = [
         r for r in words["fsdd"]["leave_one_speaker_out"].values() if r["normalization"] == norm
@@ -92,8 +98,6 @@ def key_numbers(rain: dict, words: dict) -> dict:
         "official_acc": words["fsdd"]["official_split"]["results"][str(k)]["accuracy"],
         "loso_raw": loso[f"none/{k}"]["mean"],
         "loso_cmn": loso[f"cmn/{k}"]["mean"],
-        "loso_cmn_1": loso["cmn/1"]["mean"],
-        "loso_raw_1": loso["none/1"]["mean"],
         "loso_cmn_min": loso[f"cmn/{k}"]["min"],
         "noise20": {name: c["by_snr"][i20] for name, c in noise["curves"].items()},
         "k": k,
@@ -164,7 +168,11 @@ def fig_hero(rain: dict, words: dict, n: dict, path: Path) -> None:
     a1.text(30, 0.5, "Markov chain\n(geometric)", color=SLATE, fontsize=9)
     a1.text(0.12, 0.12, "observed,\nheld-out days", color=INK, fontsize=9)
     a1.text(200, 4e-3, "3-state\nHMM", color=TEAL, fontsize=9, va="center")
-    a1.set_title("Rain: hidden states reproduce the multi-day dry spells\na Markov chain cannot")
+    a1.set_title(
+        "Rain: a 3-state HMM tracks dry spells up to\n"
+        f"~3 days, where a Markov chain is {n['obs_p72'] / n['m1_p72']:.0f}x too low;\n"
+        "longer spells are still too rare"
+    )
 
     loso = words["fsdd"]["leave_one_speaker_out"]
     states = words["protocol"]["states_grid"]
@@ -188,9 +196,9 @@ def fig_hero(rain: dict, words: dict, n: dict, path: Path) -> None:
     a2.set_xlabel("Hidden states per word model (1 = no time structure)")
     a2.set_ylabel("Digit accuracy, speaker left out of training (%)")
     a2.set_title(
-        f"Speech: digits from an unseen speaker are recognised {pct(n['loso_cmn'], 0)}"
-        f" of the time\nwith {n['k']} states + mean normalisation"
-        f" ({pct(n['loso_cmn_1'], 0)} with 1 state)"
+        f"Speech: {pct(n['loso_cmn'], 0)} of digits from unseen speakers\n"
+        f"recognised with {n['k']} states + mean normalisation\n"
+        f"(raw MFCC, {n['k']} states: {pct(n['loso_raw'], 0)})"
     )
     fig.savefig(path)
     plt.close(fig)
@@ -254,7 +262,7 @@ def fig_rain_week(rain: dict, path: Path) -> None:
         a2.fill_between(
             days, s - 0.4, s + 0.4, where=states == s, color=palette[s], step="mid", lw=0
         )
-    a2.set_yticks(range(3), [f"state {s}: P(wet) = {p:.3f}" for s, p in enumerate(p_wet)])
+    a2.set_yticks(range(3), [f"state {s}: P(wet) = {pct_sig(p)}" for s, p in enumerate(p_wet)])
     a2.set_ylim(-0.6, 2.6)
     a2.grid(False)
     a2.set_xlabel("Day of the week shown")
@@ -299,21 +307,35 @@ def fig_noise(words: dict, path: Path) -> None:
         "mfcc": (TEAL, "-"),
         "mfcc_1state": (TEAL, ":"),
     }
-    fig, ax = plt.subplots(figsize=(7.5, 3.8))
+    fig, ax = plt.subplots(figsize=(8.5, 3.8))
     x = np.arange(len(snr))
+    ends = []
     for name, curve in noise["curves"].items():
         color, ls = styles[name]
         y = 100 * np.array([curve["clean"], *curve["by_snr"]])
         label = f"{FEATURE_LABEL[curve['feature']]}, {curve['states']} state" + (
             "s" if curve["states"] > 1 else ""
         )
-        ax.plot(x, y, color=color, ls=ls, lw=2, marker="o", ms=4, label=label)
-    ax.legend(loc="upper right", fontsize=9)
+        ax.plot(x, y, color=color, ls=ls, lw=2, marker="o", ms=4)
+        ends.append((y[-1], label, color))
+    # Direct labels at the right end, pushed apart where curves end on the same value.
+    gap, floor = 6.5, -np.inf
+    for y_end, label, color in sorted(ends):
+        floor = max(y_end, floor + gap)
+        ax.annotate(
+            label,
+            (x[-1], y_end),
+            xytext=(x[-1] + 0.15, floor),
+            color=color,
+            fontsize=9,
+            va="center",
+            arrowprops={"arrowstyle": "-", "color": color, "lw": 0.6, "alpha": 0.6},
+        )
     n_words = len(words["fruits"]["words"])
-    ax.axhline(100 / n_words, color=SLATE, lw=1, ls=":")
+    ax.hlines(100 / n_words, -0.3, x[-1], color=SLATE, lw=1, ls=":")
     ax.text(-0.2, 100 / n_words + 2, f"chance (1/{n_words})", color=SLATE, fontsize=8.5)
     ax.set_xticks(x, snr)
-    ax.set_xlim(-0.3, len(snr) - 0.7)
+    ax.set_xlim(-0.3, len(snr) + 0.9)
     ax.set_ylim(0, 105)
     ax.set_xlabel("Test-time signal-to-noise ratio (white noise; models trained on clean audio)")
     ax.set_ylabel("Fruit-word accuracy (%)")
