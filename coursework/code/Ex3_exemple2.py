@@ -30,7 +30,7 @@ featStop=2          # Choix de la composante max de feature
 Nstates=3         # Nombre d'état de la chaine de Markov
 
 #%% lecture des fichiers audio et calcul des features. On bruite légérement les enregistrements
-words=Words(rep='audio',name='audio',numcep=numcep,lowfreq=lowfreq,
+words=Words(rep='fruits',name='fruits',numcep=numcep,lowfreq=lowfreq,
             highfreq=None,winlen=winlen,winstep=winstep,nfilt=nfilt,nfft=nfft,noise=50)  
 
 # On extrait une liste avec les 15 enregistrements du mot défini dans myWord

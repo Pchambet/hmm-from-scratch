@@ -133,17 +133,17 @@ class Words:
                 path = os.path.dirname(path)
             else:
                 # Try project data folder relative to this utility file
-                candidate = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', path))
+                candidate = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'data', path))
                 if os.path.isdir(candidate):
                     path = candidate
                 else:
                     # Fallback to repository root data folder
-                    repo_candidate = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', path))
+                    repo_candidate = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', path))
                     if os.path.isdir(repo_candidate):
                         path = repo_candidate
                     else:
                         # As a last resort, set to candidate (may raise later with clear message)
-                        absolute_fallback = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', path))
+                        absolute_fallback = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'data', path))
                         path = absolute_fallback
 
         # Final validation: if path still points to a file, use its parent; if not a directory, raise informative error

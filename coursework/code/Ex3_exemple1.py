@@ -20,7 +20,7 @@ winstep=0.01        # decalage temporel entre une frame et la suivante en second
 nfft=256            # Méthode Spectrum : Nombre de points pour le calcul de la FFT => spectre nfft/2 + 1 valeurs
 nfilt=26            # Méthode filter : Nonbre de filtres calculés 
 numcep=12           # Méthode mfcc : Nombre de coefficients de Mel  
-dossierAudio = 'audio'
+dossierAudio = 'fruits'
 
 #%% Chargement de tous les fichiers audio contenu dans le dossier 'audio' et calcul des features
 words=Words(rep=dossierAudio,name='exemple 1',numcep=numcep,winlen=winlen,winstep=winstep,nfilt=nfilt,nfft=nfft,filterLow=False,noise=0)  

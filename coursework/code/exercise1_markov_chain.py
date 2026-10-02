@@ -70,9 +70,9 @@ print("Nombre de périodes pluvieuses (simulées)  :", len(dPluie))
 
 #%% Étude des périodes pluie / sèche sur la série expérimentale
 
-# On construit un chemin robuste vers ../data/RR5MN.mat
+# On construit un chemin robuste vers ../../data/RR5MN.mat
 this_dir = os.path.dirname(__file__)
-mat_path = os.path.join(this_dir, "..", "data", "RR5MN.mat")
+mat_path = os.path.join(this_dir, "..", "..", "data", "RR5MN.mat")
 
 ObsMesure = mio.loadmat(mat_path)['Support'].astype(np.int8).squeeze() - 1
 # ObsMesure est normalement une séquence de 0/1 (sec/pluie)
